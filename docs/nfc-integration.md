@@ -6,16 +6,6 @@ La etiqueta prevista es **NTAG213**, un NFC Forum Type 2 Tag con **144 bytes de 
 
 Grabar un solo registro de tipo URI con la URL `https://mypet-pip.web.app/?p=IDENTIFICADOR_PUBLICO`, después de confirmar el dominio del sitio en Firebase Console. Android tiene esa base fija y las reglas rechazan otros hosts, puertos, credenciales, rutas adicionales, parámetros y fragmentos en `publicBaseUrl`. La consulta `?p=...` se añade únicamente al generar el enlace final. La sesión CLI disponible no permitió confirmar el sitio remoto, por lo que la confirmación manual sigue pendiente. El collar guardará el enlace; el navegador obtendrá los datos de la ficha al abrirla.
 
-## Prueba física pendiente
-
-1. Confirmar que el enlace HTTPS funciona en un navegador sin sesión y que el contenido autorizado es correcto.
-2. Grabar la URI NDEF y volver a leer la etiqueta para comprobar la URL.
-3. Acercar el collar a un Android con NFC habilitado y a un iPhone compatible. Registrar equipo, posición de lectura y si apareció el aviso.
-4. Repetir con el collar montado, sin la app instalada y con una red diferente. Verificar también un enlace revocado.
-5. Probar la lectura antes de bloquear permanentemente una etiqueta.
-
-Para la presentación se puede abrir la misma clase de enlace mediante clic o QR. Esa prueba cubre la apertura de la ficha. El alcance de lectura, el montaje físico y la escritura NDEF se validarán con el chip. [Android NFC](https://developer.android.com/develop/connectivity/nfc/nfc) · [Lectura en segundo plano en iPhone](https://developer.apple.com/documentation/corenfc/adding-support-for-background-tag-reading)
-
 ## Enlace y QR implementados
 
 La ficha pública genera un QR del enlace actual y permite descargarlo como SVG. En la demo local, la raíz se codifica con `?p=demo`. Para una ficha real, el QR conserva su identificador público. Android permite abrir y compartir el enlace después de que la transacción de publicación termine correctamente.
