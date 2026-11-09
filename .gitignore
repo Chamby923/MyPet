@@ -40,3 +40,15 @@ secrets/
 *service-account*.json
 *serviceAccount*.json
 *firebase-adminsdk*.json
+
+# Cachés y metadatos locales
+/.firebase/
+/.idea/vcs.xml
+node_modules/
+
+# Artefactos Android y registros locales de Firebase
+*.apk
+*.aab
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*

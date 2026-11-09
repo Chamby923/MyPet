@@ -14,12 +14,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.mypet.data.model.Pet
 import com.example.mypet.ui.viewmodel.PetViewModel
+import com.example.mypet.ui.viewmodel.NfcWriteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetDetailScreen(
     petId: String,
     viewModel: PetViewModel,
+    nfcViewModel: NfcWriteViewModel,
     onBack: () -> Unit
 ) {
     val pet = viewModel.pets.find { it.id == petId } ?: return
@@ -105,6 +107,11 @@ fun PetDetailScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (!isEditing) {
+                PublicProfileCard(pet, viewModel, nfcViewModel)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Campos de información
             DetailField("Nombre", name, isEditing) { name = it }

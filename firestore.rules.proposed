@@ -1,0 +1,132 @@
+// Política estricta configurada en firebase.json mediante firestore.rules.proposed.
+// Para futuras publicaciones autorizadas, usar este archivo; no la propuesta histórica.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function validPublicId(id) {
+      return id is string && id.matches('[A-Za-z0-9_-]{22,64}');
+    }
+    function text(data, field, max) {
+      return data.get(field, '') is string && data.get(field, '').size() <= max;
+    }
+    function privateText(data, field) {
+      return data.get(field, '') is string;
+    }
+    function httpsPhoto(url) {
+      return url == '' || url.matches('https://[^[:space:]/?#@]+([/?#][^[:space:]]*)?');
+    }
+    function validBaseUrl(url) {
+      return url == '' || url == 'https://mypet-pip.web.app'
+        || url == 'https://mypet-pip.web.app/';
+    }
+    function ownsPet(petId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/pets/$(petId)).data.ownerId == request.auth.uid;
+    }
+    function validPet(data) {
+      return data.keys().hasAll(['ownerId', 'name'])
+        && data.keys().hasOnly([
+          'name', 'photoUrl', 'breed', 'sex', 'birthDate', 'color',
+          'ownerName', 'phone', 'ownerEmail', 'vaccines', 'allergies',
+          'observations', 'status', 'ownerId', 'publicId', 'publicBaseUrl'
+        ])
+        && data.ownerId is string
+        && privateText(data, 'name') && privateText(data, 'photoUrl')
+        && privateText(data, 'breed') && privateText(data, 'sex')
+        && privateText(data, 'birthDate') && privateText(data, 'color')
+        && privateText(data, 'ownerName') && privateText(data, 'phone')
+        && privateText(data, 'ownerEmail') && privateText(data, 'vaccines')
+        && privateText(data, 'allergies') && privateText(data, 'observations')
+        && data.get('status', 'En casa') in ['En casa', 'Perdida', 'Encontrada']
+        && data.get('publicBaseUrl', '') is string
+        && validBaseUrl(data.get('publicBaseUrl', ''))
+        && ((data.get('publicId', '') == '' && data.get('publicBaseUrl', '') == '')
+          || (validPublicId(data.get('publicId', '')) && data.get('publicBaseUrl', '') != ''));
+    }
+    function validProfile(data) {
+      return data.keys().hasAll(['active', 'name', 'status'])
+        && data.keys().hasOnly([
+          'active', 'name', 'breed', 'sex', 'age', 'traits',
+          'medicalAlert', 'status', 'photoUrl', 'contactPhone'
+        ])
+        && data.active is bool && data.active == true
+        && text(data, 'name', 100) && data.name.size() > 0
+        && !data.name.matches('[[:space:]]*')
+        && data.status in ['home', 'lost', 'found']
+        && text(data, 'breed', 100) && text(data, 'sex', 100) && text(data, 'age', 100)
+        && text(data, 'traits', 1000) && text(data, 'medicalAlert', 500)
+        && text(data, 'photoUrl', 2048) && httpsPhoto(data.get('photoUrl', ''))
+        && text(data, 'contactPhone', 16)
+        && (data.get('contactPhone', '') == ''
+          || data.contactPhone.matches('[+][1-9][0-9]{7,14}'));
+    }
+    function disabled(data) {
+      return data.keys().hasOnly(['active']) && data.active is bool && data.active == false;
+    }
+    match /pets/{petId} {
+      allow get, list: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && validPet(request.resource.data)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.get('publicId', '') == '';
+      allow update: if ownsPet(petId) && validPet(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && validLinkChange(petId);
+      // Android no implementa eliminación. Se mantiene denegada.
+      allow delete: if false;
+
+      function validLinkChange(petId) {
+        let oldId = resource.data.get('publicId', '');
+        let newId = request.resource.data.get('publicId', '');
+        return oldId == newId
+          || ((oldId == '' || disabled(getAfter(/databases/$(database)/documents/publicPets/$(oldId)).data))
+            && (newId == '' || (
+              validPublicId(newId)
+              && !exists(/databases/$(database)/documents/publicPetLinks/$(newId))
+              && getAfter(/databases/$(database)/documents/publicPetLinks/$(newId)).data.petId == petId
+              && getAfter(/databases/$(database)/documents/publicPetLinks/$(newId)).data.ownerId == request.auth.uid
+              && validProfile(getAfter(/databases/$(database)/documents/publicPets/$(newId)).data)
+            )));
+      }
+    }
+    match /publicPetLinks/{publicId} {
+      allow get: if signedIn() && validPublicId(publicId) && (
+        !exists(/databases/$(database)/documents/publicPetLinks/$(publicId))
+        || (resource.data.ownerId == request.auth.uid && ownsPet(resource.data.petId)));
+      allow list, delete: if false;
+      allow create: if signedIn() && validPublicId(publicId)
+        && request.resource.data.keys().hasAll(['ownerId', 'petId'])
+        && request.resource.data.keys().hasOnly(['ownerId', 'petId'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.petId is string
+        && request.resource.data.petId.size() > 0
+        && request.resource.data.petId.size() <= 1500
+        && !request.resource.data.petId.matches('.*/.*')
+        && ownsPet(request.resource.data.petId)
+        && getAfter(/databases/$(database)/documents/pets/$(request.resource.data.petId)).data.publicId == publicId;
+      allow update: if signedIn() && resource.data.ownerId == request.auth.uid
+        && ownsPet(resource.data.petId) && request.resource.data == resource.data;
+    }
+    match /publicPets/{publicId} {
+      // Solo documentos activos válidos. Inactivos e inexistentes quedan denegados.
+      allow get: if validPublicId(publicId) && validProfile(resource.data);
+      allow list, delete: if false;
+      allow create: if signedIn() && validPublicId(publicId)
+        && canPublish(publicId) && validProfile(request.resource.data);
+      allow update: if signedIn() && validPublicId(publicId) && (
+        (canPublish(publicId) && validProfile(request.resource.data))
+        || (canRevoke(publicId) && disabled(request.resource.data)));
+
+      function canPublish(id) {
+        let link = getAfter(/databases/$(database)/documents/publicPetLinks/$(id)).data;
+        return link.ownerId == request.auth.uid && ownsPet(link.petId)
+          && getAfter(/databases/$(database)/documents/pets/$(link.petId)).data.publicId == id;
+      }
+      function canRevoke(id) {
+        let link = get(/databases/$(database)/documents/publicPetLinks/$(id)).data;
+        return link.ownerId == request.auth.uid && ownsPet(link.petId)
+          && getAfter(/databases/$(database)/documents/pets/$(link.petId)).data.publicId != id;
+      }
+    }
+  }
+}

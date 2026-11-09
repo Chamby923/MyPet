@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Identificación de mascotas | MyPet</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-inner"><strong>My<span>Pet</span></strong><span>Identificación de mascotas</span></div>
+  </header>
+  <main>
+    <div class="intro">
+      <p class="eyebrow">IDENTIFICACIÓN DESDE EL COLLAR</p>
+      <h1>¿Encontraste a esta mascota?</h1>
+      <p>Consulta su ficha para identificarla y ayudarla a volver a casa.</p>
+    </div>
+    <p id="message" class="notice" role="status" aria-live="polite">Cargando la ficha…</p>
+    <button id="retry" type="button" hidden>Volver a intentar</button>
+    <article id="profile" class="profile" aria-labelledby="pet-name" hidden>
+      <figure><img id="photo" src="./pet-placeholder.svg" alt="Ilustración de un perro"></figure>
+      <div class="details">
+        <p id="demo" class="eyebrow" hidden>FICHA DE DEMOSTRACIÓN · MASCOTA FICTICIA</p>
+        <div class="identity"><h2 id="pet-name"></h2><span id="pet-status" class="badge" hidden></span></div>
+        <dl id="facts"></dl>
+        <section id="traits" hidden><h3>Características distintivas</h3><p></p></section>
+        <section id="medical" class="medical" hidden><h3>Alerta médica autorizada</h3><p></p></section>
+        <a id="contact" class="contact" hidden>Llamar al dueño</a>
+        <p id="no-contact" class="muted" hidden>Esta ficha no tiene un teléfono autorizado para compartir.</p>
+      </div>
+    </article>
+    <details id="share" class="share" hidden>
+      <summary>Compartir esta ficha con un código QR</summary>
+      <p>Escanea el código para abrir el mismo enlace en otro celular.</p>
+      <div id="qr" aria-label="Código QR del enlace de esta ficha"></div>
+      <a id="download-qr" download="mypet-qr.svg">Descargar QR</a>
+      <p id="local-warning" class="muted" hidden>Este enlace usa una dirección local. Para abrirlo en otro celular, usa una dirección accesible desde ese equipo.</p>
+      <p id="qr-error" role="status" hidden>No se pudo generar el código. Puedes compartir el enlace del navegador.</p>
+    </details>
+    <noscript><p class="notice">Activa JavaScript para consultar la ficha.</p></noscript>
+  </main>
+  <footer>MyPet · Proyecto de Investigación Personal</footer>
+</body>
+</html>

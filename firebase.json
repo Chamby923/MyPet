@@ -1,0 +1,23 @@
+{
+  "hosting": {
+    "public": "web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      {
+        "regex": ".*",
+        "headers": [
+          { "key": "Referrer-Policy", "value": "no-referrer" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules.proposed"
+  },
+  "emulators": {
+    "hosting": { "host": "127.0.0.1", "port": 5000 },
+    "ui": { "enabled": false }
+  }
+}

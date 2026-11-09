@@ -3,8 +3,8 @@ package com.example.mypet.data.model
 import com.google.firebase.firestore.DocumentId
 
 data class Pet(
-    @get:DocumentId
-    val id: String = "",
+    @set:DocumentId
+    var id: String = "",
     val name: String = "",
     val photoUrl: String = "",
     val breed: String = "",
@@ -18,5 +18,7 @@ data class Pet(
     val allergies: String = "",
     val observations: String = "",
     val status: String = "En casa", // "En casa", "Perdida", "Encontrada"
-    val ownerId: String = "" // Relación con Firebase Auth UID
+    val ownerId: String = "", // Relación con Firebase Auth UID
+    val publicId: String = "",
+    val publicBaseUrl: String = ""
 )

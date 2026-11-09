@@ -1,0 +1,92 @@
+// PROPUESTA HISTÓRICA. Para la política vigente revisar firestore.rules.proposed.
+// Este diseño anterior permite leer marcadores inactivos. No está vinculado a firebase.json.
+// Comparar con las reglas vigentes y probar en Emulator Suite antes de integrar.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function validId(id) { return id.matches('[A-Za-z0-9_-]{22,64}'); }
+    function ownsPet(petId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/pets/$(petId)).data.ownerId == request.auth.uid;
+    }
+    function optionalText(data, field, max) {
+      return data.get(field, '') is string && data.get(field, '').size() <= max;
+    }
+    function validProfile(data) {
+      return data.keys().hasAll(['active', 'name', 'status'])
+        && data.keys().hasOnly([
+          'active', 'name', 'breed', 'sex', 'age', 'traits',
+          'medicalAlert', 'status', 'photoUrl', 'contactPhone'
+        ])
+        && data.active == true
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.status in ['home', 'lost', 'found']
+        && optionalText(data, 'breed', 100) && optionalText(data, 'sex', 100)
+        && optionalText(data, 'age', 100) && optionalText(data, 'traits', 1000)
+        && optionalText(data, 'medicalAlert', 500) && optionalText(data, 'photoUrl', 2048)
+        && optionalText(data, 'contactPhone', 16)
+        && (data.get('contactPhone', '') == ''
+          || data.contactPhone.matches('[+][1-9][0-9]{7,14}'));
+    }
+    function disabled(data) {
+      return data.keys().hasOnly(['active']) && data.active == false;
+    }
+    match /pets/{petId} {
+      allow get, list: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.get('publicId', '') == '';
+      allow update: if ownsPet(petId)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && validLinkChange(petId);
+      allow delete: if false;
+      function validLinkChange(petId) {
+        let oldId = resource.data.get('publicId', '');
+        let newId = request.resource.data.get('publicId', '');
+        return oldId == newId
+          || ((oldId == '' || disabled(getAfter(/databases/$(database)/documents/publicPets/$(oldId)).data))
+            && (newId == '' || (
+              validId(newId)
+              && !exists(/databases/$(database)/documents/publicPetLinks/$(newId))
+              && getAfter(/databases/$(database)/documents/publicPetLinks/$(newId)).data.petId == petId
+              && getAfter(/databases/$(database)/documents/publicPetLinks/$(newId)).data.ownerId == request.auth.uid
+              && validProfile(getAfter(/databases/$(database)/documents/publicPets/$(newId)).data)
+            )));
+      }
+    }
+    match /publicPetLinks/{publicId} {
+      // Relación privada. Un visitante no consulta esta colección.
+      allow get: if signedIn() && (
+        !exists(/databases/$(database)/documents/publicPetLinks/$(publicId))
+        || resource.data.ownerId == request.auth.uid);
+      allow list, delete: if false;
+      allow create: if signedIn() && validId(publicId)
+        && request.resource.data.keys().hasOnly(['ownerId', 'petId'])
+        && request.resource.data.ownerId == request.auth.uid
+        && ownsPet(request.resource.data.petId)
+        && getAfter(/databases/$(database)/documents/pets/$(request.resource.data.petId)).data.publicId == publicId;
+      allow update: if signedIn() && resource.data.ownerId == request.auth.uid
+        && request.resource.data == resource.data;
+    }
+    match /publicPets/{publicId} {
+      allow get: if validId(publicId) && (
+        !exists(/databases/$(database)/documents/publicPets/$(publicId))
+        || validProfile(resource.data) || disabled(resource.data));
+      allow list, delete: if false;
+      allow create: if canPublish(publicId) && validProfile(request.resource.data);
+      allow update: if canPublish(publicId) && validProfile(request.resource.data)
+        || canRevoke(publicId) && disabled(request.resource.data);
+      function canPublish(id) {
+        let link = getAfter(/databases/$(database)/documents/publicPetLinks/$(id)).data;
+        return signedIn() && validId(id) && link.ownerId == request.auth.uid
+          && ownsPet(link.petId)
+          && getAfter(/databases/$(database)/documents/pets/$(link.petId)).data.publicId == id;
+      }
+      function canRevoke(id) {
+        let link = get(/databases/$(database)/documents/publicPetLinks/$(id)).data;
+        return signedIn() && link.ownerId == request.auth.uid && ownsPet(link.petId)
+          && getAfter(/databases/$(database)/documents/pets/$(link.petId)).data.publicId != id;
+      }
+    }
+  }
+}
